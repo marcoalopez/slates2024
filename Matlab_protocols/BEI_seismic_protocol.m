@@ -1,7 +1,23 @@
 %% Sample reference: BEI
-clear variables
-
+% *Description*
+% 
+% *TODO...*micas represent the 47.50 % of the rock and Chl/Ms ration is 0.43
+% 
+% *Mineral content* (estimated using EDX chemical maps)
+% 
+% Muscovite = 33.2 %
+% 
+% Chlorite = 14.3 %
+% 
+% Quartz = 24.0 %
+% 
+% Plagioclase = 21.8 %
+% 
+% Others = 6 %
 %% Import EBSD data
+
+%%
+clear variables
 
 % Set crystal symmetry and reference frame
 CS = {... 
@@ -29,8 +45,8 @@ ebsd = EBSD.load(fname, CS, 'interface', 'ctf', 'convertEuler2SpatialReferenceFr
 
 % rotate 90 degrees clockwise along the x vector to convert XZ to XY
 ebsd = rotate(ebsd, rotation.byAxisAngle(xvector, 90*degree), 'keepXY')
-
 %% Cleanup routine and grain reconstruction
+
 ebsd = ebsd('indexed');
 
 % Remove wild spikes
@@ -44,8 +60,9 @@ ebsd(grains(grains.grainSize < 4)) = [];
 % Reconstruct grains
 [grains, ebsd.grainId, ebsd.mis2mean] = calcGrains(ebsd, 'angle', 10*degree, 'boundary', 'tight');
 grains
-
 %% Estimate orientation distribution functions (ODFs) for the main mineral phases
+% TODO
+
 % MUSCOVITE
 psi = calcKernel(grains('Muscovite').meanOrientation)
 odf_ms = calcKernelODF(grains('Muscovite').meanOrientation,...
@@ -69,14 +86,15 @@ psi = calcKernel(grains('Low albite').meanOrientation)
 odf_alb = calcKernelODF(grains('Low albite').meanOrientation,...
                         'weigths', grains('Low albite').area,...
                         'kernel', psi)
-
 %% Define the elastic stiffness tensors of major phases
-%% Alpha quartz
+% Alpha quartz
 % We will use the elastic constants and crystal lattice paremeters provided 
-% by 
-% Wang, J., Mao, Z., Jiang, F., Duffy, T.S., 2015. Elasticity of single-crystal 
+% by
+%% 
+% * Wang, J., Mao, Z., Jiang, F., Duffy, T.S., 2015. Elasticity of single-crystal 
 % quartz to 10 GPa. Phys Chem Minerals 42, 203–212. <https://doi.org/10.1007/s00269-014-0711-z 
 % https://doi.org/10.1007/s00269-014-0711-z>
+%% 
 % at room pressure.
 
 qtz_density = 2.648;  % (g/cm3)
@@ -115,12 +133,14 @@ tensor_quartz = stiffnessTensor(Cij_aQtz2006,...
                                 'unit', 'GPa',...
                                 cs_quartz,...
                                 'density', qtz_density);
-%% Low albite
+% Low albite
 % We will use the elastic constants and crystal lattice paremeters provided 
 % in::
+%% 
 % * J.M. Brown, E.H. Abramson and R.J. Angel (2006) Triclinic elastic constants 
 % for low albite. _Phys. Chem. Minerals_ 33: 256-265 <https://doi.org/10.1007/s00269-006-0074-1 
 % https://doi.org/10.1007/s00269-006-0074-1> 
+%% 
 % In this, the Y tensor axis is aligned parallel to crystal b direction of the 
 % real lattice (Y || b). The X tensor axis is aligned parallel to crystal a* direction 
 % of the reciprocal lattice (X || a*). The a* direction is perpendicular the b 
@@ -171,9 +191,10 @@ tensor_albite = stiffnessTensor(Cij_alb2006,...
                                 'unit', 'GPa',... 
                                 cs_alb2006,...
                                 'density', alb_density);
-%% Muscovite
+% Muscovite
 % We will use the elastic constants and crystal lattice paremeters provided 
 % in:
+%% 
 % * Militzer, B., Wenk, H.-R., Stackhouse, S., Stixrude, L., 2011. First-principles 
 % calculation of the elastic moduli of sheet silicates and their application to 
 % shale anisotropy. American Mineralogist 96, 125–137. <https://doi.org/10.2138/am.2011.3558 
@@ -219,9 +240,10 @@ tensor_muscovite = stiffnessTensor(Cij_Ms2011,...
                                    'unit', 'GPa',...
                                    cs_Ms1986,...
                                    'density', ms_density);
-%% Clinochlore (Chlorite)
+% Clinochlore (Chlorite)
 % We will use the elastic constants and crystal lattice paremeters provided 
 % in:
+%% 
 % * Joswig, W., Feuss, H. and Mason, S.A. (1989) Neutron diffraction study of 
 % a one-layer monoclinic chlorite. _Clays and Clay Miner_. 37:511-514. <https://doi.org/10.1346/CCMN.1989.0370602 
 % https://doi.org/10.1346/CCMN.1989.0370602> 
@@ -265,18 +287,21 @@ tensor_chlorite = stiffnessTensor(Cij_Chl2014,...
                                  'unit', 'GPa',...
                                  cs_chl1989,...
                                  'density', chl_density);
-
 %% Estimate the rock stiffness/elastic tensor
+% For this...TODO
+% 
 % The indexation of the different main mineral phases was notably different, 
 % especially for the micas. Due to this, we have chosen to estimate the modal 
 % proportions using EDX map data and image segmentation instead of using EBSD 
 % data.
+% 
+% 
 
 % Estimate the ODF-weighted elastic tensor for each mineral phase
-qtz_weighted = calcTensor(odf_qtz, tensor_quartz, 'Voigt');
-alb_weighted = calcTensor(odf_alb, tensor_albite, 'Voigt');
-ms_weighted  = calcTensor(odf_ms, tensor_muscovite, 'Voigt');
-chl_weighted = calcTensor(odf_chl, tensor_chlorite, 'Voigt');
+qtz_weighted = calcTensor(odf_qtz, tensor_quartz, 'Hill');
+alb_weighted = calcTensor(odf_alb, tensor_albite, 'Hill');
+ms_weighted  = calcTensor(odf_ms, tensor_muscovite, 'Hill');
+chl_weighted = calcTensor(odf_chl, tensor_chlorite, 'Hill');
 
 % set the volume mineral content of main phases (recalculated to 100 %)
 qtz_wt = 0.257;
@@ -293,7 +318,6 @@ rock_density = qtz_density * qtz_wt +...
                alb_density * alb_wt +...
                ms_density * ms_wt +...
                chl_density * chl_wt
-
 %% Estimate the elastic wave velocities (km/s) and anisotropy of rocks
 % Once we estimated the elastic stiffness tensor fo the rock/aggregate we need 
 % to solve the Christoffel equation to estimate the wave velocities as a function 
@@ -304,14 +328,14 @@ rock_density = qtz_density * qtz_wt +...
 % propagation directions (@vector3d). By default, the funtion estimate the wave 
 % velocities for all propagation directions. The function returns the following 
 % estimates:
-%
+%% 
 % * vp  - velocity of the p-wave (km/s)
 % * vs1 - velocity of the s1-wave (km/s)
 % * vs2 - velocity of the s2-wave ( km/s)
 % * pp  - polarisation of the p-wave (particle movement, vibration direction)
 % * ps1 - polarisation of the s1-wave (particle movement, vibration direction)
 % * ps2 - polarisation of the s2-wave (particle movement, vibration direction)
-%
+%% 
 % *Approaches*
 % 
 % *Voigt*: Determined using the stiffness tensor _Cij:_ provides the upper bound 
@@ -371,8 +395,8 @@ ratio_vpvs2 = vp ./ vs2;                                       % Vp/Vs2 ratio
 [maxVpVs2, maxVpVs2Pos] = max(ratio_vpvs2);                    % max
 [minVpVs2, minVpVs2Pos] = min(ratio_vpvs);                     % min
 AVpVs2 = 200 * (maxVpVs2 - minVpVs2) / (maxVpVs2 + minVpVs2);  % anisotropy (in percentage)
-
 %% Summarize results
+
 disp ' ';
 disp 'RESULTS:';
 disp ' ';
@@ -436,11 +460,79 @@ fprintf('Velocity difference Vs1-Vs2 = %.4f (km/s)\n', vs1_xyz(1) - vs2_xyz(1));
 fprintf('Vp/Vs1 = %.2f\n', vp_xyz(1) / vs1_xyz(1));
 fprintf('Vp/Vs2 = %.2f\n', vp_xyz(1) / vs2_xyz(1))
 disp ' ';
-
 %%
 plotSeismicVelocities(C_hill)
 colormap(flipud(brewermap(256, 'Spectral')))
+% Estimate the ODF-weighted elastic tensor for each mineral phase
+qtz_weighted = calcTensor(odf_qtz, tensor_quartz, 'geometric');
+alb_weighted = calcTensor(odf_alb, tensor_albite, 'geometric');
+ms_weighted  = calcTensor(odf_ms, tensor_muscovite, 'geometric');
+chl_weighted = calcTensor(odf_chl, tensor_chlorite, 'geometric');
 
+% set the volume mineral content of main phases (recalculated to 100 %)
+qtz_wt = 0.257;
+alb_wt = 0.234;
+ms_wt = 0.356;
+chl_wt = 0.153;
+
+% estimate the average elastic tensor of the rock
+C_geometric = mean([qtz_weighted, alb_weighted, ms_weighted, chl_weighted],...
+                   'weights', [qtz_wt, alb_wt, ms_wt, chl_wt], 'geometric')
+%%
+% Estimate elastic wave velocities (km/s) from the stiffness tensor
+[vp, vs1, vs2, pp, ps1, ps2] = velocity(C_geometric, 'harmonic');
+
+% P-WAVES
+vp_xyz = eval(vp, [xvector, yvector, zvector]);  % principal directions
+[maxVp, maxVpPos] = max(vp);                     % max
+[minVp, minVpPos] = min(vp);                     % min
+AVp = 200 * (maxVp - minVp) ./ (maxVp + minVp);  % anisotropy (in percentage)
+
+% S1-WAVES
+vs1_xyz = eval(vs1, [xvector, yvector, zvector]);  % principal directions
+[maxS1, maxS1pos] = max(vs1);                      % max
+[minS1, minS1pos] = min(vs1);                      % min
+AVs1 = 200  * (maxS1 - minS1) ./ (maxS1 + minS1);  % anisotropy (in percentage)
+
+% S2-WAVES
+vs2_xyz = eval(vs2, [xvector, yvector, zvector]);  % principal directions
+[maxS2, maxS2pos] = max(vs2);                      % max
+[minS2, minS2pos] = min(vs2);                      % min
+AVs2 = 200  * (maxS2 - minS2) ./ (maxS2 + minS2);  % anisotropy (in percentage)
+
+% Shear wave splitting: Velocity difference Vs1-Vs2 (km/s)
+dVs = vs1 - vs2;
+[maxdVs, maxdVsPos] = max(dVs);          % max
+[mindVs, mindVsPos] = min(dVs);          % min
+AVs = 200 * (vs1 - vs2) ./ (vs1 + vs2);  % S-wave anisotropy (in percentage)
+[maxAVs, maxAVsPos] = max(AVs);          % max S-wave anisotropy (in percentage)
+[minAVs, minAVsPos] = min(AVs);          % min S-wave anisotropy (in percentage)
+
+% RATIOS
+ratio_vpvs = vp ./ vs1;                                        % Vp/Vs1 ratio
+[maxVpVs1, maxVpVs1Pos] = max(ratio_vpvs);                     % max
+[minVpVs1, minVpVs1Pos] = min(ratio_vpvs);                     % min
+AVpVs1 = 200 * (maxVpVs1 - minVpVs1) / (maxVpVs1 + minVpVs1);  % anisotropy (in percentage)
+
+ratio_vpvs2 = vp ./ vs2;                                       % Vp/Vs2 ratio
+[maxVpVs2, maxVpVs2Pos] = max(ratio_vpvs2);                    % max
+[minVpVs2, minVpVs2Pos] = min(ratio_vpvs);                     % min
+AVpVs2 = 200 * (maxVpVs2 - minVpVs2) / (maxVpVs2 + minVpVs2);  % anisotropy (in percentage)
+%%
+fprintf('Maximum P-wave velocity = %.3f (km/s).\n', maxVp);
+%%
+fprintf(['P-wave velocity (direction-z)= %.3f (km/s)\n',...
+         'P-wave velocity (direction-y)= %.3f (km/s)\n',...
+         'P-wave velocity (direction-x)= %.3f (km/s)\n'],...
+         vp_xyz(3), vp_xyz(2), vp_xyz(1));
+%%
+fprintf(['S1-wave velocity (direction-z)= %.3f (km/s)\n',...
+         'S1-wave velocity (direction-y)= %.3f (km/s)\n',...
+         'S1-wave velocity (direction-x)= %.3f (km/s)\n'],...
+         vs1_xyz(3), vs1_xyz(2), vs1_xyz(1));
+%%
+plotSeismicVelocities(C_geometric)
+colormap(flipud(brewermap(256, 'Spectral')))
 %%
 % set a grid with a resolution of 1 degree
 XY_grid = equispacedS2Grid('upper', 'resolution', 1*degree);
@@ -449,22 +541,26 @@ XY_grid = equispacedS2Grid('upper', 'resolution', 1*degree);
 [vp_hill, vs1_hill, vs2_hill, pp, ps1, ps2] = velocity(C_hill, XY_grid);
 [vp_voigt, vs1_voigt, vs2_voigt, pp, ps1, ps2] = velocity(C_voigt, XY_grid);
 [vp_reuss, vs1_reuss, vs2_reuss, pp, ps1, ps2] = velocity(C_reuss, XY_grid);
+[vp_geo, vs1_geo, vs2_geo, pp, ps1, ps2] = velocity(C_geometric, XY_grid);
 
 % create a table with Vp, and directions in polar coordinates
 dataset = table(vp_voigt.',...
                 vp_reuss.',...
                 vp_hill.',...
+                vp_geo.',...
                 vs1_voigt.',...
                 vs1_reuss.',...
                 vs1_hill.',...
+                vs1_geo.',...
                 vs2_voigt.',...
                 vs2_reuss.',...
-                vs2_hill.',...                
+                vs2_hill.',...
+                vs2_geo.',... 
                 XY_grid.theta.',...
                 XY_grid.rho.',...
-                'VariableNames',{'Vp_voigt', 'Vp_reuss', 'Vp_hill',...
-                                 'Vs1_voigt', 'Vs1_reuss', 'Vs1_hill',...
-                                 'Vs2_voigt', 'Vs2_reuss', 'Vs2_hill',...
+                'VariableNames',{'Vp_voigt', 'Vp_reuss', 'Vp_hill', 'Vp_geo',...
+                                 'Vs1_voigt', 'Vs1_reuss', 'Vs1_hill', 'Vs1_geo',...
+                                 'Vs2_voigt', 'Vs2_reuss', 'Vs2_hill', 'Vs2_geo',...
                                  'theta_rad','rho_rad'});
 
 writetable(dataset, 'BEI_calc_velocities.csv', 'Delimiter', ';')
